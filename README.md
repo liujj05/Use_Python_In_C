@@ -71,6 +71,9 @@ state_names, state_types = conf.get_recipe('state')
 setp_names, setp_types = conf.get_recipe('setp')
 watchdog_names, watchdog_types = conf.get_recipe('watchdog')
 ```
+#### 2.1.1 走的弯路
+
+***如果想直接看实现请跳过这一节，这一节是调试过程，是一些犯过错误的记录***
 
 想办法把它用C实现。进一步充实的第一版程序写成了这个样子
 
@@ -139,7 +142,7 @@ PyObject* pInstance_ConfigFile = PyInstance_New(pClass_ConfigFile, NULL, NULL);
 ```
 
 这样进行初始化后，`pInstance_ConfigFile`这个指针不会为`NULL`
-但是，同样是以上这段C代码，在Python代码仅仅加入了一个object的情况下：
+但是，同样是以上这段C代码，在Python代码仅仅加入了一个object的情况下（加一个object表示继承自object类，这是new style class 的定义方法，相对的，不加object的类被称为old style class）：
 
 ```python
 class ConfigFile(object):
@@ -147,4 +150,37 @@ class ConfigFile(object):
         print 'LiuJiajun'
 ```
 
-`pInstance_ConfigFile`指针会变成`NULL`，也就是说初始化实例会出错
+`pInstance_ConfigFile`指针会变成`NULL`，也就是说初始化实例会出错！
+检索后发现：[据说](https://www.v2ex.com/t/92546)，这个pInstance_ConfigFile只能实例化old style class？？！！这也太尴尬了……又[据说](https://stackoverflow.com/questions/40351244/create-an-instance-of-python-new-style-class-to-embed-in-c)另外一个叫做`PyObject_CallMethod`和`PyObject_CallObject`能解决这个问题？
+
+针对以上这种 new style class，修改C中的代码：
+
+```c++
+PyObject* pInstance_ConfigFile = PyInstance_New(pClass_ConfigFile, NULL, NULL);
+```
+
+为
+
+```c++
+PyObject* pInstance_ConfigFile = PyObject_CallObject(pClass_ConfigFile, NULL);
+```
+
+终于初始化实例成功。那么重新回到正题。
+
+#### 2.1.2 如何将 New Style Class 初始化并调用其中的成员函数
+
+这里可以参考以下这个例子
+
+> [Python嵌入C++详解(3)--Import Class](http://blog.csdn.net/xiadasong007/article/details/4513615)
+
+仍然先以一个简单的例子开始。如果有一个`TestMyClass.py`内容如下：
+
+```python
+class ConfigFile(object):
+    def __init__(self, filename):
+        self.filename = filename
+    def say_ur_name(self):
+        print self.filename
+```
+
+如何在C中将 New Style Class 初始化并调用 say_ur_name 函数？
