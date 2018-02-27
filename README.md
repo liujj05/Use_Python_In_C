@@ -72,4 +72,79 @@ setp_names, setp_types = conf.get_recipe('setp')
 watchdog_names, watchdog_types = conf.get_recipe('watchdog')
 ```
 
-想办法把它用C实现。
+想办法把它用C实现。进一步充实的第一版程序写成了这个样子
+
+```c++
+int main()
+{
+    PyObject *PM_rtde_config;
+    PyObject *pFunc_ConfigFile;
+    PyObject *pArgs;				//ConfigFile的入口参数
+    PyObject *pValue;				//ConfigFile的出口参数
+
+    Py_Initialize();
+
+    // 在python中相当于import了这个文件
+    PM_rtde_config = PyImport_Import(PyString_FromString("rtde.rtde_config"));
+
+    // 获取到ConfigFile这个函数-这实际上是一个类的构造函数
+    pFunc_ConfigFile = PyObject_GetAttrString(PM_rtde_config, "ConfigFile");
+
+    // ConfigFile函数的入口参数只有一个string：config_filename
+    pArgs = PyTuple_New(1);
+    PyTuple_SetItem(pArgs, 0, PyString_FromString("control_loop_configuration.xml"));
+
+    // 执行程序
+    pValue = PyObject_CallObject(pFunc_ConfigFile, pArgs);
+
+    // 解析出口参数
+
+
+    Py_Finalize();
+    return 0;
+}
+```
+
+但是，`pValue`作为返回值却是NULL，说明调用出现了错误！
+意识到`ConfigFile`实际上是一个类，这是一个构造函数，可能调用方式不是这样的。于是重新检索了方法，具体方法见
+> [C++调用Python(3)](http://blog.csdn.net/marising/article/details/2917892)
+这个网页的内容包含如何在C中引入一个Python的类并并将其初始化
+
+接下来用了一个小的自编例子，自行写了一个Python的小类，文件叫做`TestMyClass`，代码很简单：
+
+```python
+class ConfigFile():
+    def say_ur_name(self):
+        print 'LiuJiajun'
+```
+
+实际上这个类定义是不严格符合Python目前语法的，首先ConfigFile的括号里面应该有一个object的，用来表示这个类继承自object类，但是那样写就不能彻底取消掉这个类的构造函数`__init__`了，为什么要这样做后续会提到。
+接下来在C当中：
+
+```c++
+// 在python中相当于import了这个文件
+PM_rtde_config = PyImport_Import(PyString_FromString("TestMyClass"));
+
+// 调取模块的字典列表
+PyObject* pDict = PyModule_GetDict(PM_rtde_config);
+
+// 打印一下看看
+printDict(pDict);
+
+// 提取这个类
+pClass_ConfigFile = PyDict_GetItemString(pDict, "ConfigFile");
+
+// 利用这个类定义初始化一个实例
+PyObject* pInstance_ConfigFile = PyInstance_New(pClass_ConfigFile, NULL, NULL);
+```
+
+这样进行初始化后，`pInstance_ConfigFile`这个指针不会为`NULL`
+但是，同样是以上这段C代码，在Python代码仅仅加入了一个object的情况下：
+
+```python
+class ConfigFile(object):
+    def say_ur_name(self):
+        print 'LiuJiajun'
+```
+
+`pInstance_ConfigFile`指针会变成`NULL`，也就是说初始化实例会出错
