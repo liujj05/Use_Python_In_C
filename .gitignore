@@ -21,3 +21,14 @@ Test001/Test001/Debug/Test001.log
 *.pdb
 Test001/Test001/Test001.vcxproj.filters
 Test001/Test001/x64/Debug/Test001.log
+ControlLoop/.vs/ControlLoop/v15/.suo
+*.db
+*.ipch
+ControlLoop/x64/Debug/ControlLoop.ilk
+ControlLoop/x64/Debug/ControlLoop.exe
+ControlLoop/ControlLoop/x64/Debug/ControlLoop.log
+ControlLoop/ControlLoop/targetver.h
+ControlLoop/ControlLoop/stdafx.h
+ControlLoop/ControlLoop/stdafx.cpp
+ControlLoop/ControlLoop/ControlLoop.vcxproj
+ControlLoop/ControlLoop/ControlLoop.vcxproj.filters

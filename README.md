@@ -40,6 +40,16 @@ cdef public char great_function(const char * a,int index):
 
 这个文件夹中是一个UR机器人官方提供的rtde功能的例程。其中包含了如何配置输入输出项、如何与机器人建立通信等功能。这个文件夹下的rtde文件夹中的内容，就是我们希望能够在C语言中实现的功能，当然我们也可以通过Socket编程直接重新编写，但是相比于移植，这个工作时间恐怕会更长。
 
+### 1.3 Test001
+
+这个文件夹下是一个 Visual Studio 2017 的控制台程序工程，为了进行在C中调用Python的尝试操作。具体的内容在2. 开发步骤 的 2.1节中有详细介绍。
+
+### 1.4 ControlLoop
+
+如果只对开发一个利用RTDE控制UR机器人的C控制台程序感兴趣，可以直接看这一节，这个 Visual Studio 2017 工程会完整还原
+
+---
+
 ## 2 开发步骤
 
 ### 2.1 Test001
@@ -183,4 +193,131 @@ class ConfigFile(object):
         print self.filename
 ```
 
-如何在C中将 New Style Class 初始化并调用 say_ur_name 函数？
+如何在C中将 New Style Class 初始化并调用 say_ur_name 函数？使用以下代码：
+
+```c++
+#include "stdafx.h"
+#include <Python.h>
+
+void printDict(PyObject* obj) // 打印一个Python对象的Dict，但是似乎做的不太好，原来代码的换行符写错了
+{
+    if (!PyDict_Check(obj))
+        return;
+    PyObject *k, *keys;
+    keys = PyDict_Keys(obj);
+    for (int i = 0; i < PyList_GET_SIZE(keys); i++) {
+        k = PyList_GET_ITEM(keys, i);
+        char* c_name = PyString_AsString(k);
+        //printf("%s/n", c_name);
+        printf("%s\n", c_name);
+    }
+}
+
+int main()
+{
+    PyObject *PM_rtde_config;
+    PyObject *pClass_ConfigFile;
+    PyObject *pArgs;				//ConfigFile的入口参数
+    PyObject *pValue;				//ConfigFile的出口参数
+
+    Py_Initialize();
+
+    // 在python中相当于import了这个文件
+    // PM_rtde_config = PyImport_Import(PyString_FromString("rtde.rtde_config"));
+    PM_rtde_config = PyImport_Import(PyString_FromString("TestMyClass"));
+    // 调取模块的字典列表
+    PyObject* pDict = PyModule_GetDict(PM_rtde_config);
+
+    // 打印一下看看
+    printDict(pDict);
+
+    pClass_ConfigFile = PyDict_GetItemString(pDict, "ConfigFile");
+    pArgs = Py_BuildValue("(s)", "control_loop_configuration.xml");		// 构造输入参数
+    //pArgs = PyTuple_New(1);
+    //PyTuple_SetItem(pArgs, 0, PyString_FromString("control_loop_configuration.xml"));
+    PyObject* pInstance_ConfigFile = PyObject_CallObject(pClass_ConfigFile, pArgs);
+
+    Py_Finalize();
+    return 0;
+}
+
+```
+
+注意到：在构造输入参数pArg时有两种方法（包括注释掉的那一种）：
+方法1（注意这个s要加括号()否则最终返回的实例为NULL）：
+
+```c++
+pArgs = Py_BuildValue("(s)", "control_loop_configuration.xml");
+```
+
+方法2：
+
+```c++
+pArgs = PyTuple_New(1);
+PyTuple_SetItem(pArgs, 0, PyString_FromString("control_loop_configuration.xml"));
+```
+
+#### 2.1.3 导入rtde.rtde_config模块
+
+这里只列出关键的代码段。以下代码段的功能是：
+
+- 载入`rtde.rtde_config`模块
+- 获取这个模块的`ConfigFile`类
+- 配置一个输入参数`pArgs`并用该参数初始化该类的一个实例`pInstance_ConfigFile`
+- 调用这个实例的成员函数`get_recipe`，将该成员函数的返回值存入`PyObject*`类型的变量`p_res`之中
+- 解析`p_res`并打印第一个字符
+
+```c++
+PyObject *PM_rtde_config;
+PyObject *pClass_ConfigFile;
+PyObject *pArgs;				//ConfigFile的入口参数
+PyObject *pValue;				//ConfigFile的出口参数
+
+Py_Initialize();
+
+// 在python中相当于import了这个文件
+PM_rtde_config = PyImport_Import(PyString_FromString("rtde.rtde_config"));
+// 调取模块的字典列表
+PyObject* pDict = PyModule_GetDict(PM_rtde_config);
+
+// 打印一下看看
+printDict(pDict);
+pClass_ConfigFile = PyDict_GetItemString(pDict, "ConfigFile");
+pArgs = Py_BuildValue("(s)", "control_loop_configuration.xml");		// 构造输入参数
+PyObject* pInstance_ConfigFile = PyObject_CallObject(pClass_ConfigFile, pArgs);
+
+// 调用成员函数 get_recipe
+PyObject* p_Func_get_recipe = PyObject_GetAttrString(pInstance_ConfigFile, "get_recipe");
+PyObject* p_input = Py_BuildValue("(s)", "state");
+PyObject* p_res = PyEval_CallObject(p_Func_get_recipe, p_input);
+
+// 成员函数 get_recipe 输出结果 p_res 解析
+if (!PyTuple_Check(p_res))
+{
+    printf("p_res is not tuple!");
+    return 0;
+}
+
+PyObject* py_obj_state_names = PyTuple_GetItem(p_res, 0);
+PyObject* py_obj_state_types = PyTuple_GetItem(p_res, 1);
+
+// 这两个 object 在Python中以list的形式存在
+if (PyList_Check(py_obj_state_names))
+    printf("py_obj_state_names is a list!");
+
+PyObject* state_name1 = PyList_GetItem(py_obj_state_names, 0);
+PyObject* state_name2 = PyList_GetItem(py_obj_state_names, 1);
+PyObject* state_name3 = PyList_GetItem(py_obj_state_names, 2);
+
+printf(PyString_AsString(state_name1));
+
+
+// 暂停看结果
+//getchar();
+
+// 
+Py_Finalize();
+return 0;
+```
+
+以上代码段是主程序当中的，可以很好地实现列表中的功能。
