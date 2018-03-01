@@ -46,7 +46,7 @@ cdef public char great_function(const char * a,int index):
 
 ### 1.4 ControlLoop
 
-如果只对开发一个利用RTDE控制UR机器人的C控制台程序感兴趣，可以直接看这一节，这个 Visual Studio 2017 工程会完整还原
+如果只对开发一个利用RTDE控制UR机器人的C控制台程序感兴趣，可以直接看这一节，这个 Visual Studio 2017 工程会完整实现一个与UR机器人互动的程序，当然需要机器人端编写相关的程序进行配合。
 
 ---
 
@@ -321,3 +321,5 @@ return 0;
 ```
 
 以上代码段是主程序当中的，可以很好地实现列表中的功能。
+
+### 2.2 自编程序与UR机器人展开互动
