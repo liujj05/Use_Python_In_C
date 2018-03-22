@@ -57,6 +57,11 @@ cdef public char great_function(const char * a,int index):
 在C中尝试调用rtde中的一些不需要连接机器人的功能。具体参照
 [C语言调用Python脚本中的函数](http://blog.csdn.net/hexiaomin_1984/article/details/37969193)来建立这个功能。起初代码编写完成之后，编译通过但是链接失败，网上检索后根据[在VS2012中C++嵌入python](http://blog.csdn.net/haimengao/article/details/16867547)一文发现，64位Python的机器上，工程必须设定在x64环境下编译，否则就会链接失败。
 
+同时，必须对项目属性进行配置
+1. 在VC++包含目录添加包含Python.h的include目录
+2. 在VC++库目录添加包含python27.lib的libs目录
+3. 在链接器中添加python27.lib为附加依赖项
+
 首先尝试了以下代码：
 
 ```
